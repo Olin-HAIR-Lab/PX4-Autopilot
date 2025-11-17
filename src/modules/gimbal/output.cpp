@@ -264,16 +264,17 @@ void OutputBase::_calculate_angle_output(const hrt_abstime &t)
 		}
 	}
 
+	// constrain angle outputs to [-range/2, range/2]
+	_angle_outputs[0] = math::constrain(_angle_outputs[0], math::radians(-_parameters.mnt_range_roll / 2),
+					    math::radians(_parameters.mnt_range_roll / 2));
+
 	// constrain angle outputs to [min, max] to allow for asymmetrical angular ranges
-	_angle_outputs[0] = math::constrain(_angle_outputs[0] + math::radians(_parameters.mnt_off_roll),
-					    math::radians(_parameters.mnt_min_roll),
-					    math::radians(_parameters.mnt_max_roll));
 	_angle_outputs[1] = math::constrain(_angle_outputs[1] + math::radians(_parameters.mnt_off_pitch),
 					    math::radians(_parameters.mnt_min_pitch),
 					    math::radians(_parameters.mnt_max_pitch));
-	_angle_outputs[2] = math::constrain(_angle_outputs[2] + math::radians(_parameters.mnt_off_yaw),
-					    math::radians(_parameters.mnt_min_yaw),
-					    math::radians(_parameters.mnt_max_yaw));
+	// constrain angle outputs to [-range/2, range/2]
+	_angle_outputs[2] = math::constrain(_angle_outputs[2], math::radians(-_parameters.mnt_range_yaw / 2),
+					    math::radians(_parameters.mnt_range_yaw / 2));
 
 	// constrain pitch to [MNT_LND_P_MIN, MNT_LND_P_MAX] if landed
 	if (_landed) {
