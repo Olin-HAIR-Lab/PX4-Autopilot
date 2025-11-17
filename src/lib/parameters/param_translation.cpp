@@ -163,5 +163,18 @@ param_modify_on_import_ret param_modify_on_import(bson_node_t node)
 		}
 	}
 
+	// 2025-11-17: translate MNT_RANGE_PITCH to MNT_MAX_PITCH, MNT_MIN_PITCH
+	{
+		if (strcmp("MNT_RANGE_PITCH", node->name) == 0) {
+			if (node->d > DBL_EPSILON) {
+				double mnt_max_pitch = 0.5 * node->d;
+				double mnt_min_pitch = -0.5 * node->d;
+				param_set(param_find("MNT_MAX_PITCH"), &mnt_max_pitch);
+				param_set(param_find("MNT_MIN_PITCH"), &mnt_min_pitch);
+				PX4_INFO("migrating %s -> %s, %s", "MNT_RANGE_PITCH", "MNT_MAX_PITCH", "MNT_MIN_PITCH");
+			}
+		}
+	}
+
 	return param_modify_on_import_ret::PARAM_NOT_MODIFIED;
 }
