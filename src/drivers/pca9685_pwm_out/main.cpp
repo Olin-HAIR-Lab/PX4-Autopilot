@@ -80,12 +80,14 @@ protected:
 
 private:
 	perf_counter_t	_cycle_perf;
+	perf_counter_t _comms_errors;
 
 	enum class STATE : uint8_t {
+		CONFIGURE,
 		INIT,
 		WAIT_FOR_OSC,
 		RUNNING
-	} state{STATE::INIT};
+	} state{STATE::CONFIGURE};
 
 	PCA9685 *pca9685 = nullptr;
 	uORB::SubscriptionInterval _parameter_update_sub{ORB_ID(parameter_update), 1_s};
@@ -106,7 +108,8 @@ private:
 
 PCA9685Wrapper::PCA9685Wrapper() :
 	OutputModuleInterface(MODULE_NAME, px4::wq_configurations::hp_default),
-	_cycle_perf(perf_alloc(PC_ELAPSED, MODULE_NAME": cycle"))
+	_cycle_perf(perf_alloc(PC_ELAPSED, MODULE_NAME": cycle")),
+	_comms_errors(perf_alloc(PC_COUNT, MODULE_NAME": comms errors"))
 {
 }
 
@@ -119,6 +122,7 @@ PCA9685Wrapper::~PCA9685Wrapper()
 	}
 
 	perf_free(_cycle_perf);
+	perf_free(_comms_errors);
 }
 
 int PCA9685Wrapper::init()
@@ -176,16 +180,34 @@ void PCA9685Wrapper::Run()
 		return;
 	}
 
+	int ret;
+
 	switch (state) {
+	case STATE::CONFIGURE:
+		ret = pca9685->reset();
+		ret |= pca9685->configure();
+
+		if(ret == PX4_OK) {
+			state = STATE::INIT;
+		}
+
+		ScheduleNow();
+		break;
+
 	case STATE::INIT:
 		updateParams();
-		pca9685->updateFreq(param_pwm_freq);
-		previous_pwm_freq = param_pwm_freq;
-		previous_schd_rate = param_schd_rate;
+		ret = pca9685->updateFreq(param_pwm_freq);
+		ret |= pca9685->wake();
+		if (ret == PX4_OK) {
+			previous_pwm_freq = param_pwm_freq;
+			previous_schd_rate = param_schd_rate;
+			state = STATE::WAIT_FOR_OSC;
+			ScheduleDelayed(500);
+		}else{
+			state = STATE::CONFIGURE;
+			ScheduleNow();
+		}
 
-		pca9685->wake();
-		state = STATE::WAIT_FOR_OSC;
-		ScheduleDelayed(500);
 		break;
 
 	case STATE::WAIT_FOR_OSC: {
@@ -214,9 +236,14 @@ void PCA9685Wrapper::Run()
 
 				ScheduleClear();
 
-				pca9685->sleep();
-				pca9685->updateFreq(param_pwm_freq);
-				pca9685->wake();
+				ret = pca9685->sleep();
+				ret |= pca9685->updateFreq(param_pwm_freq);
+				ret |= pca9685->wake();
+
+				if(ret != PX4_OK) {
+					perf_count(_comms_errors);
+					PX4_INFO("Failed to update PCA9685 PWM frequency");
+				}
 
 				// update of PWM freq will always trigger scheduling change
 				previous_schd_rate = param_schd_rate;

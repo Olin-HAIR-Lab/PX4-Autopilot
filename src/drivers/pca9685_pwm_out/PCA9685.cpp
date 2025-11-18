@@ -58,17 +58,18 @@ PCA9685::PCA9685(int bus, int addr):
 int PCA9685::init()
 {
 	int ret = I2C::init();
+	return ret;
+}
 
-	if (ret != PX4_OK) { return ret; }
-
+int PCA9685::configure(){
 	uint8_t buf[2] = {};
 
 	buf[0] = PCA9685_REG_MODE1;
 	buf[1] = PCA9685_DEFAULT_MODE1_CFG | PCA9685_MODE1_SLEEP_MASK;  // put into sleep mode
-	ret = transfer(buf, 2, nullptr, 0);
+	int ret = transfer(buf, 2, nullptr, 0);
 
 	if (OK != ret) {
-		PX4_ERR("init: i2c::transfer returned %d", ret);
+		PX4_ERR("PCA9685 configure fail: transfer returned %d", ret);
 		return ret;
 	}
 
@@ -77,7 +78,7 @@ int PCA9685::init()
 	ret = transfer(buf, 2, nullptr, 0); // enable EXTCLK if possible
 
 	if (OK != ret) {
-		PX4_ERR("init: i2c::transfer returned %d", ret);
+		PX4_ERR("PCA9685 configure fail: transfer returned %d", ret);
 		return ret;
 	}
 
@@ -88,7 +89,7 @@ int PCA9685::init()
 	ret = transfer(buf, 2, nullptr, 0);
 
 	if (OK != ret) {
-		PX4_ERR("init: i2c::transfer returned %d", ret);
+		PX4_ERR("PCA9685 configure fail: transfer returned %d", ret);
 		return ret;
 	}
 
@@ -174,6 +175,15 @@ int PCA9685::doRestart()
 		PCA9685_DEFAULT_MODE1_CFG | PCA9685_MODE1_RESTART_MASK
 	};
 	return transfer(buf, 2, nullptr, 0);
+}
+
+
+int PCA9685::reset()
+{
+	uint8_t buf[2] = { 0x00, 0x06 };
+	int ret = transfer(buf, 2, nullptr, 0);
+	PX4_INFO("PCA9685 reset %d \n", ret);
+	return ret;
 }
 
 int PCA9685::probe()

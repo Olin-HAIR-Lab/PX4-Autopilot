@@ -156,6 +156,16 @@ public:
 	 */
 	int doRestart();
 
+	/*
+	* Configure the PCA9685 device with necessary settings. e.g. MODE1 or MODE2
+	*/
+	int configure();
+
+	/*
+	* Reset PCA9685 device to power-up state
+	*/
+	int reset();
+
 protected:
 	int probe() override;
 
