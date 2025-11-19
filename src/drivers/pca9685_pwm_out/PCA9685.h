@@ -150,7 +150,7 @@ public:
 	/*
 	* Verfy whether the registers of PCA9685 are in a consistent state
 	*/
-	int registers_check();
+	void registers_check(bool *transfer_ok, bool *registers_ok);
 
 protected:
 	int probe() override;

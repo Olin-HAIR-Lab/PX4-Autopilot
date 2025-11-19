@@ -101,9 +101,14 @@ private:
 
 	float param_pwm_freq, previous_pwm_freq;
 	float param_schd_rate, previous_schd_rate;
+	bool param_update_failed = false;
 	uint32_t param_duty_mode;
 
+	static constexpr uint8_t transfer_fails_threshold = 10;
+	uint8_t _register_transfer_fails = 0;
+
 	void Run() override;
+	void registers_check();
 };
 
 PCA9685Wrapper::PCA9685Wrapper() :
@@ -223,7 +228,7 @@ void PCA9685Wrapper::Run()
 			_mixing_output.update();
 
 			// check for parameter updates
-			if (_parameter_update_sub.updated()) {
+			if (_parameter_update_sub.updated() || param_update_failed) {
 				// clear update
 				parameter_update_s pupdate;
 				_parameter_update_sub.copy(&pupdate);
@@ -233,21 +238,25 @@ void PCA9685Wrapper::Run()
 
 				// apply param updates
 				if ((float)fabs(previous_pwm_freq - param_pwm_freq) > 0.01f) {
-
 					ScheduleClear();
+
 					int ret = pca9685->sleep();
 					ret |= pca9685->updateFreq(param_pwm_freq);
 					ret |= pca9685->wake();
 
-					if (ret != PX4_OK) {
+					if (ret == PX4_OK) {
+						// update of PWM freq will always trigger scheduling change
+						param_update_failed = false;
+						previous_schd_rate = param_schd_rate;
+						previous_pwm_freq = param_pwm_freq;
+						ScheduleOnInterval(1000000 / param_schd_rate, 0);
+
+					} else {
+						param_update_failed = true;
 						perf_count(_comms_errors);
+						ScheduleNow();
+						break;
 					}
-
-					// update of PWM freq will always trigger scheduling change
-					previous_schd_rate = param_schd_rate;
-					previous_pwm_freq = param_pwm_freq;
-
-					ScheduleNow();
 
 				} else if ((float)fabs(previous_schd_rate - param_schd_rate) > 0.01f) {
 					// case when PWM freq not changed but scheduling rate does
@@ -257,19 +266,42 @@ void PCA9685Wrapper::Run()
 				}
 			}
 
-			if (pca9685->registers_check() != PX4_OK) {
-				PX4_ERR("PCA9685 in inconsistent state, will reconfigure");
-				perf_count(_registers_invalid);
-				_state = STATE::CONFIGURE;
-				ScheduleNow();
-				break;
-			}
-
+			registers_check();
 			_mixing_output.updateSubscriptions(false);
 
 			perf_end(_cycle_perf);
 			break;
 		}
+	}
+}
+
+void PCA9685Wrapper::registers_check()
+{
+	bool transfer_ok = true;
+	bool registers_ok = true;
+	pca9685->registers_check(&transfer_ok, &registers_ok);
+
+	if (transfer_ok) {
+		_register_transfer_fails = 0;
+
+	} else {
+		_register_transfer_fails++;
+	}
+
+	if (!registers_ok) {
+		PX4_ERR("PCA9685 in inconsistent state, will reconfigure");
+		perf_count(_registers_invalid);
+		_state = STATE::CONFIGURE;
+		ScheduleClear();
+		ScheduleNow();
+	}
+
+	if (_register_transfer_fails > transfer_fails_threshold) {
+		PX4_ERR("PCA9685 not reachable, will reconfigure");
+		_register_transfer_fails = 0;
+		_state = STATE::CONFIGURE;
+		ScheduleClear();
+		ScheduleNow();
 	}
 }
 
