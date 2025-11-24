@@ -67,8 +67,8 @@ private:
 	float _tc;
 	float _max_rate_pos;
 	float _max_rate_neg;
-	float _euler_rate_setpoint;
-	float _body_rate_setpoint;
+	float _euler_rate_setpoint{0.f};
+	float _body_rate_setpoint{0.f};
 };
 
 #endif // FW_PITCH_CONTROLLER_H

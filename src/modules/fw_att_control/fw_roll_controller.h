@@ -65,8 +65,8 @@ public:
 private:
 	float _tc;
 	float _max_rate;
-	float _euler_rate_setpoint;
-	float _body_rate_setpoint;
+	float _euler_rate_setpoint{0.f};
+	float _body_rate_setpoint{0.f};
 };
 
 #endif // FW_ROLL_CONTROLLER_H
