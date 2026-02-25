@@ -62,7 +62,7 @@ GZBridge::~GZBridge()
 int GZBridge::init()
 {
 
-	// std::string model_name_no_nesting = model_name_trim_nesting();
+	std::string model_name_no_nesting = model_name_trim_nesting();
 
 	// REQUIRED:
 	if (!subscribeClock(true)) {
@@ -135,50 +135,26 @@ int GZBridge::init()
 		}
 	}
 
-	// // ESC mixing interface
-	// if (!_mixing_interface_esc.init(model_name_no_nesting)) {
-	// 	PX4_ERR("failed to init ESC output");
-	// 	return PX4_ERROR;
-	// }
-
-	// // Servo mixing interface
-	// if (!_mixing_interface_servo.init(model_name_no_nesting)) {
-	// 	PX4_ERR("failed to init servo output");
-	// 	return PX4_ERROR;
-	// }
-
-	// // Wheel mixing interface
-	// if (!_mixing_interface_wheel.init(model_name_no_nesting)) {
-	// 	PX4_ERR("failed to init motor output");
-	// 	return PX4_ERROR;
-	// }
-
-	// // Gimbal mixing interface
-	// if (!_gimbal.init(_world_name, model_name_no_nesting)) {
-	// 	PX4_ERR("failed to init gimbal");
-	// 	return PX4_ERROR;
-	// }
-
-		// ESC mixing interface
-	if (!_mixing_interface_esc.init(_model_name)) {
+	// ESC mixing interface
+	if (!_mixing_interface_esc.init(model_name_no_nesting)) {
 		PX4_ERR("failed to init ESC output");
 		return PX4_ERROR;
 	}
 
 	// Servo mixing interface
-	if (!_mixing_interface_servo.init(_model_name)) {
+	if (!_mixing_interface_servo.init(model_name_no_nesting)) {
 		PX4_ERR("failed to init servo output");
 		return PX4_ERROR;
 	}
 
 	// Wheel mixing interface
-	if (!_mixing_interface_wheel.init(_model_name)) {
+	if (!_mixing_interface_wheel.init(model_name_no_nesting)) {
 		PX4_ERR("failed to init motor output");
 		return PX4_ERROR;
 	}
 
 	// Gimbal mixing interface
-	if (!_gimbal.init(_world_name, _model_name)) {
+	if (!_gimbal.init(_world_name, model_name_no_nesting)) {
 		PX4_ERR("failed to init gimbal");
 		return PX4_ERROR;
 	}
@@ -531,7 +507,6 @@ void GZBridge::poseInfoCallback(const gz::msgs::Pose_V &msg)
 
 	for (int p = 0; p < msg.pose_size(); p++) {
 		if (msg.pose(p).name() == model_name_no_nesting) {
-		// if (msg.pose(p).name() == _model_name) {
 			const double dt = math::constrain((timestamp - _timestamp_prev) * 1e-6, 0.001, 0.1);
 			_timestamp_prev = timestamp;
 
