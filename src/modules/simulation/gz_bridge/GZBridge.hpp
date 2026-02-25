@@ -138,6 +138,8 @@ private:
 
 	void addGpsNoise(double &latitude, double &longitude, double &altitude,
 			 float &vel_north, float &vel_east, float &vel_down);
+	
+	std::string model_name_trim_nesting();
 
 	uORB::SubscriptionInterval                    _parameter_update_sub{ORB_ID(parameter_update), 1_s};
 

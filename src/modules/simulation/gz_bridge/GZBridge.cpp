@@ -61,6 +61,9 @@ GZBridge::~GZBridge()
 
 int GZBridge::init()
 {
+
+	// std::string model_name_no_nesting = model_name_trim_nesting();
+
 	// REQUIRED:
 	if (!subscribeClock(true)) {
 		return PX4_ERROR;
@@ -132,7 +135,31 @@ int GZBridge::init()
 		}
 	}
 
-	// ESC mixing interface
+	// // ESC mixing interface
+	// if (!_mixing_interface_esc.init(model_name_no_nesting)) {
+	// 	PX4_ERR("failed to init ESC output");
+	// 	return PX4_ERROR;
+	// }
+
+	// // Servo mixing interface
+	// if (!_mixing_interface_servo.init(model_name_no_nesting)) {
+	// 	PX4_ERR("failed to init servo output");
+	// 	return PX4_ERROR;
+	// }
+
+	// // Wheel mixing interface
+	// if (!_mixing_interface_wheel.init(model_name_no_nesting)) {
+	// 	PX4_ERR("failed to init motor output");
+	// 	return PX4_ERROR;
+	// }
+
+	// // Gimbal mixing interface
+	// if (!_gimbal.init(_world_name, model_name_no_nesting)) {
+	// 	PX4_ERR("failed to init gimbal");
+	// 	return PX4_ERROR;
+	// }
+
+		// ESC mixing interface
 	if (!_mixing_interface_esc.init(_model_name)) {
 		PX4_ERR("failed to init ESC output");
 		return PX4_ERROR;
@@ -500,9 +527,11 @@ void GZBridge::poseInfoCallback(const gz::msgs::Pose_V &msg)
 {
 	const uint64_t timestamp = hrt_absolute_time();
 
-	for (int p = 0; p < msg.pose_size(); p++) {
-		if (msg.pose(p).name() == _model_name) {
+	std::string model_name_no_nesting = model_name_trim_nesting();
 
+	for (int p = 0; p < msg.pose_size(); p++) {
+		if (msg.pose(p).name() == model_name_no_nesting) {
+		// if (msg.pose(p).name() == _model_name) {
 			const double dt = math::constrain((timestamp - _timestamp_prev) * 1e-6, 0.001, 0.1);
 			_timestamp_prev = timestamp;
 
@@ -1034,6 +1063,20 @@ int GZBridge::print_usage(const char *reason)
 	PRINT_MODULE_USAGE_DEFAULT_COMMANDS();
 
 	return 0;
+}
+
+std::string GZBridge::model_name_trim_nesting()
+{
+	int ind_slash = _model_name.find_last_of("/");
+	std::string model_name_no_nesting = "";
+
+	if(ind_slash >= 0){
+		model_name_no_nesting = _model_name.substr(ind_slash+1, _model_name.length());
+	}else{
+		model_name_no_nesting = _model_name;
+	}
+
+	return model_name_no_nesting;
 }
 
 extern "C" __EXPORT int gz_bridge_main(int argc, char *argv[])
